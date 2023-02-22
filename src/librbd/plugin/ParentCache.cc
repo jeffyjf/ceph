@@ -35,6 +35,7 @@ namespace plugin {
 template <typename I>
 void ParentCache<I>::init(I* image_ctx, Api<I>& api,
                           cache::ImageWritebackInterface& image_writeback,
+                          cache::ImageWriteThroughInterface& image_write_through,
                           PluginHookPoints& hook_points_list,
                           Context* on_finish) {
   bool parent_cache_enabled = image_ctx->config.template get_val<bool>(

@@ -56,6 +56,8 @@ struct Api {
       ImageCtxT *image_ctx,
       uint64_t features);
 
+  virtual uint64_t get_image_size(ImageCtxT *image_ctx);
+
   virtual void update_aio_comp(
       io::AioCompletion* aio_comp,
       uint32_t request_count,
@@ -66,9 +68,15 @@ struct Api {
       io::AioCompletion* aio_comp,
       uint32_t request_count);
 
+  virtual utime_t get_image_modify_timestamp(ImageCtxT *image_ctx);
+
   virtual io::ReadResult::C_ImageReadRequest* create_image_read_request(
       io::AioCompletion* aio_comp, uint64_t buffer_offset,
       const Extents& image_extents);
+
+  virtual void rados_object_write(ImageCtxT *image_ctx, Context *on_finish, std::string name, ceph::bufferlist &bl);
+
+  virtual void rados_object_read(ImageCtxT *image_ctx, Context *on_finish, std::string name, ceph::bufferlist &bl, uint64_t offset, uint64_t length);
 
   virtual io::C_AioRequest* create_aio_request(io::AioCompletion* aio_comp);
 

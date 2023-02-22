@@ -1208,6 +1208,14 @@ struct denc_traits<
 
 template<typename T, typename ...Ts>
 struct denc_traits<
+  std::multiset<T, Ts...>,
+  std::enable_if_t<denc_traits<T>::supported>>
+  : public _denc::container_base<std::multiset,
+				 _denc::setlike_details<std::multiset<T, Ts...>>,
+				 T, Ts...> {};
+
+template<typename T, typename ...Ts>
+struct denc_traits<
   boost::container::flat_set<T, Ts...>,
   std::enable_if_t<denc_traits<T>::supported>>
   : public _denc::container_base<

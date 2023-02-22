@@ -190,6 +190,13 @@ options:
   default: false
   services:
   - rbd
+- name: rbd_hot_area_cache_enabled
+  type: bool
+  level: advanced
+  desc: whether to enable rbd hot area cache
+  default: true
+  services:
+  - rbd
 - name: rbd_concurrent_management_ops
   type: uint
   level: advanced
@@ -846,6 +853,21 @@ options:
   default: /tmp
   services:
   - rbd
+- name: rbd_hot_area_cache_size
+  type: uint
+  level: advanced
+  desc: size of the hot area cache for this volume
+  default: 5_G
+  services:
+  - rdb
+  min: 1_G
+- name: rbd_hot_area_cache_path
+  type: str
+  level: advanced
+  desc: location of the hot area cache in a persistent disk
+  default: /tmp
+  services:
+  - rdb
 - name: rbd_quiesce_notification_attempts
   type: uint
   level: dev

@@ -40,6 +40,7 @@ namespace plugin {
 template <typename I>
 void WriteLogImageCache<I>::init(I* image_ctx, Api<I>& api,
                                  cache::ImageWritebackInterface& image_writeback,
+                                 cache::ImageWriteThroughInterface& image_write_through,
                                  PluginHookPoints& hook_points_list,
                                  Context* on_finish) {
   bool pwl_enabled = librbd::cache::util::is_pwl_enabled(*image_ctx);
@@ -54,7 +55,6 @@ void WriteLogImageCache<I>::init(I* image_ctx, Api<I>& api,
   auto hook_points = std::make_unique<WriteLogImageCache::HookPoints>(
       image_ctx, image_writeback, api);
   hook_points_list.emplace_back(std::move(hook_points));
-  
   on_finish->complete(0);
 }
 

@@ -8,6 +8,7 @@
 #include "include/Context.h"
 #include "common/PluginRegistry.h"
 #include "librbd/cache/ImageWriteback.h"
+#include "librbd/cache/ImageWriteThrough.h"
 
 namespace librbd {
 namespace plugin {
@@ -36,6 +37,7 @@ struct Interface : public ceph::Plugin {
 
   virtual void init(ImageCtxT* image_ctx, Api<ImageCtxT>& api,
 		    librbd::cache::ImageWritebackInterface& image_writeback,
+            librbd::cache::ImageWriteThroughInterface& image_write_through,
                     PluginHookPoints& hook_points_list, Context* on_finish) = 0;
 };
 

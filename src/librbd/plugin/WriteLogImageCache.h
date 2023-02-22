@@ -23,6 +23,7 @@ public:
 
   void init(ImageCtxT* image_ctx, Api<ImageCtxT>& api,
             cache::ImageWritebackInterface& image_writeback,
+            cache::ImageWriteThroughInterface& image_write_through,
             PluginHookPoints& hook_points_list,
             Context* on_finish) override;
 

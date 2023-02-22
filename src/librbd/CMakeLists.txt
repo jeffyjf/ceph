@@ -53,6 +53,7 @@ set(librbd_internal_srcs
   api/Utils.cc
   asio/ContextWQ.cc
   cache/ImageWriteback.cc
+  cache/ImageWriteThrough.cc
   cache/ObjectCacherObjectDispatch.cc
   cache/ObjectCacherWriteback.cc
   cache/WriteAroundObjectDispatch.cc
@@ -258,6 +259,36 @@ set_target_properties(librbd_plugin_parent_cache PROPERTIES
   SOVERSION 1)
 install(TARGETS librbd_plugin_parent_cache DESTINATION ${librbd_plugins_dir})
 add_dependencies(librbd_plugins librbd_plugin_parent_cache)
+
+
+if(WITH_RBD_HOT_AREA_CACHE)
+  set(rbd_plugin_hac_srcs
+    cache/HotAreaCacheImageDispatch.cc
+    cache/hac/HotAreaCache.cc
+    cache/hac/InitRequest.cc
+    cache/hac/SyncRequest.cc
+    cache/hac/ShutdownRequest.cc
+    cache/hac/Area.cc
+    cache/hac/LocalCacheSlot.cc
+    cache/hac/ReadRequest.cc
+    cache/hac/WriteRequest.cc
+    cache/hac/ExtentBuf.cc
+    plugin/HotAreaImageCache.cc)
+  add_library(librbd_plugin_hac_cache SHARED
+    ${rbd_plugin_hac_srcs})
+  target_link_libraries(librbd_plugin_hac_cache PRIVATE
+    blk
+    ceph-common
+    librbd
+    libneorados
+    librados)
+  set_target_properties(librbd_plugin_hac_cache PROPERTIES
+    OUTPUT_NAME ceph_librbd_hac_cache
+    VERSION 1.0.0
+    SOVERSION 1)
+  install(TARGETS librbd_plugin_hac_cache DESTINATION ${librbd_plugins_dir})
+  add_dependencies(librbd_plugins librbd_plugin_hac_cache)
+endif()
 
 if(WITH_RBD_RWL OR WITH_RBD_SSD_CACHE)
   set(rbd_plugin_pwl_srcs
