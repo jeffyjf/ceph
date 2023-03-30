@@ -232,6 +232,9 @@ namespace librbd {
 
     crypto::CryptoInterface* crypto = nullptr;
 
+    // let the hac cache know if it is a rollback op.
+    bool rollback_op_for_hac = false;
+
     // unit test mock helpers
     static ImageCtx* create(const std::string &image_name,
                             const std::string &image_id,

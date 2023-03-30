@@ -18,12 +18,24 @@ AreaRecord Area::get_record() {
   return record;
 }
 
+uint64_t Area::get_offset() {
+  return this->offset;
+}
+
 void Area::increase_count() {
   this->count++;
 }
 
+uint64_t Area::get_count() {
+  return this->count;
+}
+
+void Area::set_count(uint64_t count) {
+  this->count=count;
+}
+
 uint64_t Area::get_index() {
-  return offset >> AREA_SIZE_ORDER;
+  return offset >> area_conf()->size_order();
 }
 
 void Area::hire(LocalCacheSlot* cache_slot, BlockDevice *bdev) {
@@ -46,6 +58,14 @@ LocalCacheSlot* Area::retire(CephContext* cct) {
     m_cache_slot->reset(cct);
   }
   return m_cache_slot;
+}
+
+AreaConf* area_instance = 0;
+AreaConf* area_conf(){ 
+  if (area_instance == 0){
+    area_instance = new AreaConf();
+  }
+  return area_instance;
 }
 
 std::ostream& operator<<(std::ostream& os, const Area& area) {

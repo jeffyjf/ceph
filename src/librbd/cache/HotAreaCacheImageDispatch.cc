@@ -91,7 +91,23 @@ bool HotAreaCacheImageDispatch<I>::discard(
     uint64_t tid, std::atomic<uint32_t>* image_dispatch_flags,
     io::DispatchResult* dispatch_result,
     Context** on_finish, Context* on_dispatched) {
-  return false;
+
+  auto cct = m_image_ctx->cct;
+  ldout(cct, 20) << "image_extents=" << image_extents << dendl;
+
+  *dispatch_result = io::DISPATCH_RESULT_COMPLETE;
+  if (preprocess_length(aio_comp, image_extents)) {
+    return true;
+  }
+
+  m_plugin_api.update_aio_comp(aio_comp, image_extents.size());
+  for (auto &extent : image_extents) {
+    io::C_AioRequest *req_comp = m_plugin_api.create_aio_request(aio_comp);
+    m_image_cache->discard(extent.first, extent.second,
+                           discard_granularity_bytes,
+                           req_comp);
+  }
+  return true;
 }
 
 template <typename I>
@@ -102,7 +118,23 @@ bool HotAreaCacheImageDispatch<I>::write_same(
     std::atomic<uint32_t>* image_dispatch_flags,
     io::DispatchResult* dispatch_result,
     Context** on_finish, Context* on_dispatched) {
-  return false;
+  
+  auto cct = m_image_ctx->cct;
+  ldout(cct, 20) << "image_extents=" << image_extents << dendl;
+  
+  *dispatch_result = io::DISPATCH_RESULT_COMPLETE;
+  if (preprocess_length(aio_comp, image_extents)) {
+    return true;
+  }
+
+  m_plugin_api.update_aio_comp(aio_comp, image_extents.size());
+  for (auto &extent : image_extents) {
+    io::C_AioRequest *req_comp = m_plugin_api.create_aio_request(aio_comp);
+    m_image_cache->writesame(extent.first, extent.second,
+                             std::move(bl), op_flags,
+                             req_comp);
+  }
+  return true;
 }
 
 template <typename I>
@@ -113,7 +145,21 @@ bool HotAreaCacheImageDispatch<I>::compare_and_write(
     std::atomic<uint32_t>* image_dispatch_flags,
     io::DispatchResult* dispatch_result,
     Context** on_finish, Context* on_dispatched) {
-  return false;
+  
+  auto cct = m_image_ctx->cct;
+  ldout(cct, 20) << "image_extents=" << image_extents << dendl;
+
+  *dispatch_result = io::DISPATCH_RESULT_COMPLETE;
+  if (preprocess_length(aio_comp, image_extents)) {
+    return true;
+  }
+
+  m_plugin_api.update_aio_comp(aio_comp, 1);
+  io::C_AioRequest *req_comp = m_plugin_api.create_aio_request(aio_comp);
+  m_image_cache->compare_and_write(
+    std::move(image_extents), std::move(cmp_bl), std::move(bl),
+    mismatch_offset, op_flags, req_comp);
+  return true;
 }
 
 template <typename I>
@@ -151,8 +197,14 @@ bool HotAreaCacheImageDispatch<I>::preprocess_length(
 
 template <typename I>
 bool HotAreaCacheImageDispatch<I>::invalidate_cache(Context* on_finish) {
-  // m_image_cache->invalidate(on_finish);
-  on_finish->complete(0);
+  auto cct = m_image_ctx->cct;
+  if (m_image_ctx->rollback_op_for_hac) {
+    ldout(cct, 5) << "Invalidate hac cache." << dendl;
+    m_image_cache->invalidate(on_finish);
+  }else{
+    ldout(cct, 5) << "Do not invalidate hac cache." << dendl;
+    on_finish->complete(0);
+  }
   return true;
 }
 

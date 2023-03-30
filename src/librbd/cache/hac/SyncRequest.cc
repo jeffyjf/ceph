@@ -20,9 +20,10 @@ template <typename I>
 SyncRequest<I>::SyncRequest(
   Context* on_finish, I& image_ctx,
   plugin::Api<I>& plugin_api,
-  AreaCountSet& recorded_areas, BlockDevice* bdev) :
+  AreaCountSet& system_recorded_areas, AreaCountSet& common_recorded_areas, BlockDevice* bdev) :
 m_on_finish(on_finish), m_image_ctx(image_ctx),
-m_plugin_api(plugin_api), m_recorded_areas(recorded_areas), m_bdev(bdev) {}
+m_plugin_api(plugin_api), m_system_recorded_areas(system_recorded_areas), 
+m_common_recorded_areas(common_recorded_areas), m_bdev(bdev) {}
 
 template <typename I>
 void SyncRequest<I>::send() {
@@ -57,13 +58,17 @@ template <typename I>
 void SyncRequest<I>::sync_area_records(Context* ctx) {
   auto cct = m_image_ctx.cct;
   ldout(cct, 20) << dendl;
-  for (auto area : m_recorded_areas) {
-    ldout(cct, 20) << "Area record: " << *area << dendl;
-    m_area_record_vec.push_back(area->get_record());
+  for (auto area : m_system_recorded_areas) {
+    ldout(cct, 20) << "System area record: " << *area << dendl;
+    m_area_records.system_records.push_back(area->get_record());
+  }
+  for (auto area : m_common_recorded_areas) {
+    ldout(cct, 20) << "Common area record: " << *area << dendl;
+    m_area_records.common_records.push_back(area->get_record());
   }
   bufferlist record_bl;
-  encode(m_area_record_vec, record_bl);
-  RecordHeader header{record_bl.length()};
+  encode(m_area_records, record_bl);
+  RecordHeader header{record_bl.length(), area_conf()->size()};
   ldout(cct, 20) << "Area records data len: " << header.data_len << dendl;
   bufferlist header_bl;
   encode(header, header_bl);

@@ -13,7 +13,6 @@ namespace librbd {
 namespace cache {
 namespace hac {
 
-const uint64_t BLOCKS_PER_SLOT = AREA_SIZE / BLOCK_SIZE;
 
 void ReadResult::add_extent_to_hit(io::Extent&& extent) {
   if (m_current_hit_extents.size() == 0) {
@@ -66,7 +65,7 @@ LocalCacheSlot::LocalCacheSlot(uint64_t pos,
     m_is_free(true), m_pos(pos),
     m_image_write_through(image_write_through),
     m_slot_lock("librbd::cache::hac::LocalCacheSlot::m_slot_lock") {
-  m_block_flags.resize(BLOCKS_PER_SLOT, false);
+  m_block_flags.resize(slot_conf()->blocks_per_slot(), false);
 }
 
 LocalCacheSlot::LocalCacheSlot(SlotRootRecord& root_record,
@@ -76,8 +75,8 @@ LocalCacheSlot::LocalCacheSlot(SlotRootRecord& root_record,
     m_image_write_through(image_write_through),
     m_slot_lock("librbd::cache::hac::LocalCacheSlot::m_slot_lock") {
   ldout(cct, 20) << "Construct slot from record: " << root_record << dendl;
-  this->m_block_flags.resize(BLOCKS_PER_SLOT, false);
-  uint64_t flags = BLOCKS_PER_SLOT / 8;
+  this->m_block_flags.resize(slot_conf()->blocks_per_slot(), false);
+  uint64_t flags = slot_conf()->blocks_per_slot() / 8;
   for (uint64_t i=0; i<flags; i++) {
     uint8_t record_flag = root_record.block_flags[i];
     for (int n=0; n<8; n++) {
@@ -96,7 +95,7 @@ SlotRootRecord LocalCacheSlot::get_root_record(CephContext* cct) {
     .pos = this->m_pos,
     .image_offset = this->m_image_offset};
 
-  uint64_t flags = BLOCKS_PER_SLOT / 8;
+  uint64_t flags = slot_conf()->blocks_per_slot() / 8;
   root_record.block_flags.resize(flags, 0);
   for (uint64_t i=0; i<flags; i++) {
     uint8_t tmp_flag = root_record.block_flags[i];
@@ -112,11 +111,11 @@ SlotRootRecord LocalCacheSlot::get_root_record(CephContext* cct) {
 }
 
 uint64_t LocalCacheSlot::get_index() {
-  return (this->m_pos - ROOT_RECORD_SIZE) >> AREA_SIZE_ORDER;
+  return (this->m_pos - ROOT_RECORD_SIZE) >> area_conf()->size_order();
 }
 
 uint64_t LocalCacheSlot::get_area_index() {
-  return this->m_image_offset >> AREA_SIZE_ORDER;
+  return this->m_image_offset >> area_conf()->size_order();
 }
 
 io::Extent LocalCacheSlot::get_slot_extent(ExtentBufPtr extent_buf) {
@@ -137,10 +136,10 @@ void LocalCacheSlot::update_slot_cached_block(ExtentBufPtr extent_buf, CephConte
   m_bdev->aio_submit(&aio->ioc);
   uint64_t start_block_index = extent_buf->offset >> BLOCK_SIZE_ORDER;
   uint64_t end_block_index = (extent_buf->offset + extent_buf->len - 1) >> BLOCK_SIZE_ORDER;
-  for (uint64_t i=start_block_index; i<=end_block_index; i++) {
-    ldout(cct, 24) << "Set block: " << i << " in slot: " << *this << " as true." << dendl;
-    m_block_flags[i] = true;
-  }
+  ldout(cct, 24) << "Set block: " << start_block_index << "~" <<  end_block_index << " in slot: " << *this << " as true." << dendl;
+  std::vector<bool>::iterator it = m_block_flags.begin();
+  std::advance(it, start_block_index);
+  std::fill_n(it, end_block_index-start_block_index+1, true);
 }
 
 void LocalCacheSlot::read(
@@ -155,12 +154,28 @@ void LocalCacheSlot::read(
   uint64_t start_block_index = slot_ext.first >> BLOCK_SIZE_ORDER;
   uint64_t end_block_index = (slot_ext.first+slot_ext.second-1) >> BLOCK_SIZE_ORDER;
   ldout(cct, 20) << start_block_index << "~" << end_block_index << dendl;
+  uint64_t continuous_hit_blocks = 0;
+  uint64_t continuous_miss_blocks = 0;
   for (uint64_t i=start_block_index; i<=end_block_index; i++) {
     if (m_block_flags[i]) {
-      read_result->add_extent_to_hit({i<<BLOCK_SIZE_ORDER, BLOCK_SIZE});
+      continuous_hit_blocks++;
+      if (continuous_miss_blocks > 0){
+        read_result->add_extent_to_miss({(i-continuous_miss_blocks)<<BLOCK_SIZE_ORDER, BLOCK_SIZE*continuous_miss_blocks});
+        continuous_miss_blocks = 0;
+      }
     } else {
-      read_result->add_extent_to_miss({i<<BLOCK_SIZE_ORDER, BLOCK_SIZE});
+      continuous_miss_blocks++;
+      if (continuous_hit_blocks > 0){
+        read_result->add_extent_to_hit({(i-continuous_hit_blocks)<<BLOCK_SIZE_ORDER, BLOCK_SIZE*continuous_hit_blocks});
+        continuous_hit_blocks = 0;
+      }
     }
+  }
+  if (continuous_hit_blocks > 0){
+    read_result->add_extent_to_hit({(end_block_index+1-continuous_hit_blocks)<<BLOCK_SIZE_ORDER, BLOCK_SIZE*continuous_hit_blocks});
+  }
+  if (continuous_miss_blocks > 0){
+    read_result->add_extent_to_miss({(end_block_index+1-continuous_miss_blocks)<<BLOCK_SIZE_ORDER, BLOCK_SIZE*continuous_miss_blocks});
   }
 
   auto gather_ctx = new C_Gather(cct, read_result);
@@ -261,7 +276,61 @@ void LocalCacheSlot::write(
   gather_ctx->activate();
 }
 
+void LocalCacheSlot::discard(
+    ExtentBufPtr image_extent_buf, CephContext* cct) {
+  ldout(cct, 20) << dendl;
 
+  io::Extent slot_ext = get_slot_extent(image_extent_buf);
+  uint64_t start_offset = slot_ext.first;
+  uint64_t end_offset = slot_ext.first + slot_ext.second;
+  uint64_t start_block_index = start_offset >> BLOCK_SIZE_ORDER;
+  uint64_t end_block_index = (end_offset-1) >> BLOCK_SIZE_ORDER;
+  
+  if (start_block_index != end_block_index){
+    if (m_block_flags[start_block_index]) {
+      uint64_t offset =  round_up_to(start_offset, BLOCK_SIZE);
+      // If discard involes the whole block，invalid the block.
+      if (offset == start_offset){
+        m_block_flags[start_block_index] = false;
+      }
+    }
+    if (m_block_flags[end_block_index]) {
+      uint64_t offset =  round_up_to(end_offset, BLOCK_SIZE);
+      // If discard involes the whole block，invalid the block.
+      if (offset == end_offset){
+          m_block_flags[end_block_index] = false;
+      }
+    }
+    if (end_block_index-start_block_index>1){
+      std::vector<bool>::iterator it = m_block_flags.begin();
+      std::advance(it, start_block_index+1);
+      std::fill_n(it, end_block_index-start_block_index-1, false);
+    }
+  }else{
+    if (m_block_flags[start_block_index]){
+        // If discard involes the whole block，invalid the block.
+        if (slot_ext.second == BLOCK_SIZE){
+           m_block_flags[end_block_index] = false;
+        }
+    }
+  }
+}
+
+void LocalCacheSlot::compare_and_write(
+    ExtentBufPtr image_extent_buf, CephContext* cct) {
+  ldout(cct, 20) << dendl;
+
+  io::Extent slot_ext = get_slot_extent(image_extent_buf);
+  uint64_t start_offset = slot_ext.first;
+  uint64_t end_offset = slot_ext.first + slot_ext.second;
+  uint64_t start_block_index = start_offset >> BLOCK_SIZE_ORDER;
+  uint64_t end_block_index = (end_offset-1) >> BLOCK_SIZE_ORDER;
+  
+  // Invalid involed block.
+  std::vector<bool>::iterator it = m_block_flags.begin();
+  std::advance(it, start_block_index);
+  std::fill_n(it, end_block_index-start_block_index+1, false);
+}
 
 void LocalCacheSlot::set_bdev(BlockDevice* bdev) {
   this->m_bdev = bdev;
@@ -272,9 +341,7 @@ void LocalCacheSlot::set_image_offset(uint64_t image_offset) {
 }
 
 void LocalCacheSlot::reset_block_flags() {
-  for (uint64_t i=0; i<BLOCKS_PER_SLOT; i++) {
-    this->m_block_flags[i] = false;
-  }
+  std::fill_n(m_block_flags.begin(), slot_conf()->blocks_per_slot(), false);
 }
 
 void LocalCacheSlot::reset(CephContext* cct) {
@@ -295,6 +362,15 @@ std::string local_placement_slot_file_name(
     const std::string pool_name) {
   return path + "/rbd-hac." + pool_name + "." + img_id + ".pool";
 }
+
+SlotConf* slot_instance = 0;
+SlotConf* slot_conf(){ 
+  if (slot_instance == 0){
+    slot_instance = new SlotConf();
+  }
+  return slot_instance;
+}
+
 
 } // namespace hac
 } // namespace cache

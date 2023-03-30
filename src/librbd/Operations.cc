@@ -952,6 +952,7 @@ int Operations<I>::snap_rollback(const cls::rbd::SnapshotNamespace& snap_namespa
           return;
         }
         std::shared_lock l{m_image_ctx.owner_lock};
+        m_image_ctx.rollback_op_for_hac = true;
         execute_snap_rollback(snap_namespace, snap_name, prog_ctx, ctx);
       });
 

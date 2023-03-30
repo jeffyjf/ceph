@@ -119,6 +119,47 @@ void Api<I>::rados_object_read(I *image_ctx, Context *on_finish, std::string nam
     librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
 }
 
+template <typename I>
+void Api<I>::rados_object_remove(I *image_ctx, Context *on_finish, std::string name) {
+  neorados::WriteOp write_op;
+  write_op.remove();
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(write_op),
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_xattr_write(I *image_ctx, Context *on_finish, std::string name, std::string xattr_name, ceph::bufferlist& bl) {
+  neorados::WriteOp write_op;
+  write_op.setxattr(xattr_name, std::move(bl));
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(write_op),
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_xattr_read(I *image_ctx, Context *on_finish, std::string name, std::string xattr_name, ceph::bufferlist* out) {
+  neorados::ReadOp read_op;
+  read_op.get_xattr(xattr_name, out);
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(read_op), nullptr,
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_xattrs_read(I *image_ctx, Context *on_finish, std::string name, 
+  boost::container::flat_map<std::string, bufferlist> *xattr_out_map) {
+  neorados::ReadOp read_op;
+  read_op.get_xattrs(xattr_out_map);
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(read_op), nullptr,
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
 } // namespace plugin
 } // namespace librbd
 

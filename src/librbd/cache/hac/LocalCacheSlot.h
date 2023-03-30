@@ -43,11 +43,13 @@ private:
 struct SlotRootHeader {
   uint64_t root_data_len;
   utime_t timestamp;
+  uint64_t slot_size; //always ares_size == slot_size 
   bool shutdown;
   DENC(SlotRootHeader, v, p) {
     DENC_START(1, 1, p);
     denc(v.root_data_len, p);
     denc(v.timestamp, p);
+    denc(v.slot_size, p);
     denc(v.shutdown, p);
     DENC_FINISH(p);
   }
@@ -77,6 +79,10 @@ public:
       ExtentBufPtr image_extent_buf, uint64_t tid, CephContext* cct, Context *on_finish);
   void write(
       ExtentBufPtr image_extent_buf, uint64_t tid, CephContext* cct, Context *on_finish);
+  void discard(
+      ExtentBufPtr image_extent_buf, CephContext* cct);
+  void compare_and_write(
+      ExtentBufPtr image_extent_buf, CephContext* cct);
 
   uint64_t get_index();
   uint64_t get_area_index();
@@ -138,6 +144,25 @@ std::ostream& operator<<(std::ostream& os, const LocalCacheSlot& slot);
 typedef std::set<LocalCacheSlot*, LocalCacheSlotCompare> CacheSlotSet;
 
 std::string local_placement_slot_file_name(const std::string path, const std::string img_id, const std::string pool_name);
+
+
+class SlotConf {
+public:
+  uint64_t blocks_per_slot(){
+    return m_blocks_per_slot;
+  }
+  void init(uint64_t area_size){
+    m_blocks_per_slot = area_size / BLOCK_SIZE;
+  }
+private:
+  uint64_t m_blocks_per_slot;
+};
+
+SlotConf* slot_conf();
+
+
+
+
 
 } // namespace hac
 } // namespace cache

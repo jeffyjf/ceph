@@ -31,10 +31,14 @@ public:
 private:
   void finish(int r);
 
-  void init_area_and_load_records(Context* on_finish);
-  void init_local_cache_file_and_slots(Context* on_finish);
-  void create_new_local_cache_file(Context* on_finish, std::string slot_file);
-  void check_existing_local_cache_file(Context* on_finish, std::string slot_file);
+  void init_area_and_slot_conf();
+  void init_area_and_load_records(Context* on_finish, bool invalid_cache);
+  void init_local_cache_file_and_slots(Context* on_finish, bool invalid_cache);
+  void create_new_local_cache_file(Context* on_finish, std::string slot_file, 
+                                   std::string slot_dir);
+  int  remove_invalid_cache_file(std::string& slot_file, utime_t& now_time);
+  void check_existing_local_cache_file(Context* on_finish, std::string slot_file,
+                                       std::string slot_dir);
   void associate_area_and_slot();
 
   Context* m_on_finish;
@@ -42,7 +46,7 @@ private:
   ImageCtxT &m_image_ctx;
   plugin::Api<ImageCtxT> &m_plugin_api;
   bufferlist m_tmp_bl;
-  std::vector<AreaRecord> m_area_record_vec;
+  AreaRecords m_area_records;
   std::vector<SlotRootRecord> m_slot_root_record_vec;
   cache::ImageWriteThroughInterface &m_image_write_through;
   uint64_t m_cache_file_size;

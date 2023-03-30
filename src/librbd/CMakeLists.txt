@@ -273,6 +273,8 @@ if(WITH_RBD_HOT_AREA_CACHE)
     cache/hac/ReadRequest.cc
     cache/hac/WriteRequest.cc
     cache/hac/ExtentBuf.cc
+    cache/hac/DiscardRequest.cc
+    cache/hac/CompareAndWriteRequest.cc
     plugin/HotAreaImageCache.cc)
   add_library(librbd_plugin_hac_cache SHARED
     ${rbd_plugin_hac_srcs})

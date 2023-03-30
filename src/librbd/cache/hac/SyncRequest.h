@@ -18,7 +18,7 @@ namespace hac {
 template <typename ImageCtxT>
 class SyncRequest {
 public:
-  SyncRequest(Context* on_finish, ImageCtxT& image_ctx, plugin::Api<ImageCtxT>& plugin_api, AreaCountSet& recorded_areas, BlockDevice* bdev);
+  SyncRequest(Context* on_finish, ImageCtxT& image_ctx, plugin::Api<ImageCtxT>& plugin_api, AreaCountSet& system_recorded_areas, AreaCountSet& common_recorded_areas, BlockDevice* bdev);
   void send();
 private:
 
@@ -29,10 +29,11 @@ private:
   Context* m_on_finish;
   ImageCtxT& m_image_ctx;
   plugin::Api<ImageCtxT>& m_plugin_api;
-  AreaCountSet& m_recorded_areas;
+  AreaCountSet& m_system_recorded_areas;
+  AreaCountSet& m_common_recorded_areas;
   BlockDevice* m_bdev;
 
-  std::vector<AreaRecord> m_area_record_vec;
+  AreaRecords m_area_records;
 };
 
 } // namespace hac

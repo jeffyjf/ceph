@@ -78,6 +78,15 @@ struct Api {
 
   virtual void rados_object_read(ImageCtxT *image_ctx, Context *on_finish, std::string name, ceph::bufferlist &bl, uint64_t offset, uint64_t length);
 
+  virtual void rados_object_remove(ImageCtxT *image_ctx, Context *on_finish, std::string name);
+  
+  virtual void rados_xattr_write(ImageCtxT *image_ctx, Context *on_finish, std::string name, std::string xattr_name, ceph::bufferlist& bl);
+
+  virtual void rados_xattr_read(ImageCtxT *image_ctx, Context *on_finish, std::string name, std::string xattr_name, ceph::bufferlist* out);
+
+  virtual void rados_xattrs_read(ImageCtxT *image_ctx, Context *on_finish, std::string name,
+    boost::container::flat_map<std::string, bufferlist> *xattr_out_map);
+
   virtual io::C_AioRequest* create_aio_request(io::AioCompletion* aio_comp);
 
 private:

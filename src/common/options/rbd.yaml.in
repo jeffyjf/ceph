@@ -868,6 +868,33 @@ options:
   default: /tmp
   services:
   - rdb
+- name: rbd_hot_area_cache_area_size
+  type: uint
+  level: advanced
+  desc: byte size of each slot in the hot area cache for this volume
+  default: 1_M
+  min: 4_K
+  max: 32_M
+  services:
+  - rdb
+  validator: |
+    [](std::string *value, std::string *error_message) {
+      uint64_t f = strict_si_cast<uint64_t>(*value, error_message);
+      if (!error_message->empty()) {
+        return -EINVAL;
+      } else if (!isp2(f)) {
+        *error_message = "value must be a power of two";
+        return -EINVAL;
+      }
+      return 0;
+    }
+- name: rbd_hot_area_cache_sys_boot_seconds
+  type: uint
+  level: advanced
+  desc: specified time is the system boot duration
+  default: 0
+  services:
+  - rdb
 - name: rbd_quiesce_notification_attempts
   type: uint
   level: dev
