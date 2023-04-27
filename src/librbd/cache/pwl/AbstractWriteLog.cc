@@ -71,10 +71,14 @@ AbstractWriteLog<I>::AbstractWriteLog(
                  ceph::make_timespan(
                    image_ctx.config.template get_val<uint64_t>(
 		     "rbd_op_thread_timeout")),
-                 &m_thread_pool)
+                 &m_thread_pool),
+    m_system_boot_timer_thread(this, 
+          image_ctx.config.template get_val<uint64_t>(
+		      "rbd_persistent_cache_delay_write_senconds"))
 {
   CephContext *cct = m_image_ctx.cct;
   m_plugin_api.get_image_timer_instance(cct, &m_timer, &m_timer_lock);
+  m_system_boot_timer_thread.create("delay timer");
 }
 
 template <typename I>
@@ -945,6 +949,7 @@ void AbstractWriteLog<I>::flush(io::FlushSource flush_source, Context *on_finish
 
   if (io::FLUSH_SOURCE_SHUTDOWN == flush_source || io::FLUSH_SOURCE_INTERNAL == flush_source ||
       io::FLUSH_SOURCE_WRITE_BLOCK == flush_source) {
+    m_delay_write_rados = false;  
     internal_flush(false, on_finish);
     return;
   }
@@ -1742,8 +1747,27 @@ Context* AbstractWriteLog<I>::construct_flush_entry(std::shared_ptr<GenericLogEn
 }
 
 template <typename I>
+void AbstractWriteLog<I>::delay_write_to_rados(uint64_t sysboot_seconds){
+  CephContext *cct = m_image_ctx.cct;
+  ldout(cct, 20) << dendl;
+
+  if (sysboot_seconds < 1){
+    m_delay_write_rados = false;
+    return;
+  }
+  sleep(sysboot_seconds);
+  ldout(cct, 5) << "Delay write over." << dendl;
+  m_delay_write_rados=false;
+}
+
+template <typename I>
 void AbstractWriteLog<I>::process_writeback_dirty_entries() {
   CephContext *cct = m_image_ctx.cct;
+  ldout(cct, 20) << dendl;
+  if (m_delay_write_rados){
+    return;
+  }
+
   bool all_clean = false;
   int flushed = 0;
   bool has_write_entry = false;

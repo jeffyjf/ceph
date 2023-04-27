@@ -853,6 +853,13 @@ options:
   default: /tmp
   services:
   - rbd
+- name: rbd_persistent_cache_delay_write_senconds
+  type: uint
+  level: advanced
+  desc: specify seconds to delay before writing to rados when system boot
+  default: 30
+  services:
+  - rbd
 - name: rbd_hot_area_cache_size
   type: uint
   level: advanced

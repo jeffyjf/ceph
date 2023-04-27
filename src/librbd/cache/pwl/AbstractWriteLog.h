@@ -328,6 +328,22 @@ protected:
 
   ContextWQ m_work_queue;
 
+  class SystemBootTimerThread : public Thread {
+      AbstractWriteLog *m_write_log;
+      uint64_t m_sysboot_seconds;
+   public:
+      explicit SystemBootTimerThread(
+        AbstractWriteLog *write_log, uint64_t sysboot_seconds): 
+        m_write_log(write_log), m_sysboot_seconds(sysboot_seconds){}
+        
+        void *entry() override {
+           m_write_log->delay_write_to_rados(m_sysboot_seconds);
+           return 0;
+        }
+  } m_system_boot_timer_thread;
+  bool m_delay_write_rados = true;
+  void delay_write_to_rados(uint64_t sysboot_seconds);
+
   void wake_up();
 
   void update_entries(
