@@ -902,6 +902,28 @@ options:
   default: 0
   services:
   - rdb
+- name: rbd_temp_local_cache_enabled
+  type: bool
+  level: advanced
+  desc: whether to enable rbd temp local cache
+  default: false
+  services:
+  - rbd
+- name: rbd_temp_local_cache_size
+  type: uint
+  level: advanced
+  desc: size of the temp local cache for this volume
+  default: 10_G
+  services:
+  - rdb
+  min: 10_G
+- name: rbd_temp_local_cache_path
+  type: str
+  level: advanced
+  desc: location of the temp local cache in a persistent disk
+  default: /rbdcache
+  services:
+  - rdb
 - name: rbd_quiesce_notification_attempts
   type: uint
   level: dev

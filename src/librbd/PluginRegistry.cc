@@ -6,6 +6,7 @@
 #include "common/dout.h"
 #include "librbd/cache/ImageWriteback.h"
 #include "librbd/cache/ImageWriteThrough.h"
+#include "librbd/cache/ImageTempLocalWriteback.h"
 #include "librbd/ImageCtx.h"
 #include "librbd/plugin/Api.h"
 #include <boost/tokenizer.hpp>
@@ -21,7 +22,8 @@ template <typename I>
 PluginRegistry<I>::PluginRegistry(I* image_ctx)
   : m_image_ctx(image_ctx), m_plugin_api(std::make_unique<plugin::Api<I>>()),
     m_image_writeback(std::make_unique<cache::ImageWriteback<I>>(*image_ctx)),
-    m_image_write_through(std::make_unique<cache::ImageWriteThrough<I>>(*image_ctx)) {
+    m_image_write_through(std::make_unique<cache::ImageWriteThrough<I>>(*image_ctx)),
+    m_image_temp_local_writeback(std::make_unique<cache::ImageTempLocalWriteback<I>>(*image_ctx)) {
 }
 
 template <typename I>
@@ -50,7 +52,7 @@ void PluginRegistry<I>::init(const std::string& plugins, Context* on_finish) {
     }
 
     plugin->init(
-	m_image_ctx, *m_plugin_api, *m_image_writeback, *m_image_write_through, m_plugin_hook_points, ctx);
+      m_image_ctx, *m_plugin_api, *m_image_writeback, *m_image_write_through,  *m_image_temp_local_writeback, m_plugin_hook_points, ctx);
   }
 
   gather_ctx->activate();

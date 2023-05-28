@@ -1378,6 +1378,9 @@ cmake .. \
 %if 0%{with rbd_hot_area_cache}
     -DWITH_RBD_HOT_AREA_CACHE:BOOL=ON \
 %endif
+%if 0%{with rbd_temp_local_cache}
+    -DWITH_RBD_TEMP_LOCAL_CACHE:BOOL=ON \
+%endif
 %if 0%{with system_pmdk}
     -DWITH_SYSTEM_PMDK:BOOL=ON \
 %endif
