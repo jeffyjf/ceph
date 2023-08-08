@@ -256,6 +256,12 @@ CMAKE_DEPENDENT_OPTION(WITH_RBD_RWL "Enable librbd persistent write back cache" 
 CMAKE_DEPENDENT_OPTION(WITH_RBD_SSD_CACHE "Enable librbd persistent write back cache for SSDs" OFF
     "WITH_RBD" OFF)
 
+CMAKE_DEPENDENT_OPTION(WITH_RBD_HOT_AREA_CACHE "Enable librbd hot area cache." ON
+    "WITH_RBD" OFF)
+
+CMAKE_DEPENDENT_OPTION(WITH_RBD_TEMP_LOCAL_CACHE "Enable librbd temp local cache." ON
+    "WITH_RBD" OFF)
+
 CMAKE_DEPENDENT_OPTION(WITH_SYSTEM_PMDK "Require and build with system PMDK" OFF
   "WITH_RBD_RWL OR WITH_BLUESTORE_PMEM" OFF)
 

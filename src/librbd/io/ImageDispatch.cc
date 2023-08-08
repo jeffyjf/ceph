@@ -41,7 +41,7 @@ bool ImageDispatch<I>::read(
     DispatchResult* dispatch_result, Context** on_finish,
     Context* on_dispatched) {
   auto cct = m_image_ctx->cct;
-  ldout(cct, 20) << "image_extents=" << image_extents << dendl;
+  ldout(cct, 20) << "xxxxxxxxxxxxxxxxxxxxxImageDispatch: " << "image_extents=" << image_extents << dendl;
 
   start_in_flight_io(aio_comp);
 

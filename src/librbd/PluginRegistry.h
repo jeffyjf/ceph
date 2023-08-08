@@ -17,6 +17,8 @@ struct ImageCtx;
 
 namespace cache {
 class ImageWritebackInterface;
+class ImageWriteThroughInterface;
+class ImageTempLocalWritebackInterface;
 }
 
 namespace plugin { template <typename> struct Api; }
@@ -37,6 +39,8 @@ private:
   ImageCtxT* m_image_ctx;
   std::unique_ptr<plugin::Api<ImageCtxT>> m_plugin_api;
   std::unique_ptr<cache::ImageWritebackInterface> m_image_writeback;
+  std::unique_ptr<cache::ImageWriteThroughInterface> m_image_write_through;
+  std::unique_ptr<cache::ImageTempLocalWritebackInterface> m_image_temp_local_writeback;
 
   std::string m_plugins;
 

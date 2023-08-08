@@ -8,6 +8,8 @@
 #include "librbd/io/Utils.h"
 #include "librbd/Operations.h"
 #include "librbd/Utils.h"
+#include "include/neorados/RADOS.hpp"
+#include "librbd/asio/Utils.h"
 
 namespace librbd {
 namespace plugin {
@@ -48,6 +50,17 @@ bool Api<I>::test_image_features(I *image_ctx, uint64_t features) {
 }
 
 template <typename I>
+uint64_t Api<I>::get_image_size(I *image_ctx) {
+  std::shared_lock image_locker(image_ctx->image_lock);
+  return image_ctx->get_current_size();
+}
+
+template <typename I>
+utime_t Api<I>::get_image_modify_timestamp(I *image_ctx) {
+  return image_ctx->get_modify_timestamp();
+}
+
+template <typename I>
 void Api<I>::update_aio_comp(io::AioCompletion* aio_comp,
                              uint32_t request_count,
                              io::ReadResult &read_result,
@@ -84,6 +97,67 @@ void Api<I>::start_in_flight_io(io::AioCompletion* aio_comp) {
   if (!aio_comp->async_op.started()) {
     aio_comp->start_op();
   }
+}
+
+template <typename I>
+void Api<I>::rados_object_write(I *image_ctx, Context *on_finish, std::string name, ceph::bufferlist &bl) {
+  neorados::WriteOp write_op;
+  write_op.write_full(std::move(bl));
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(write_op),
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_object_read(I *image_ctx, Context *on_finish, std::string name, ceph::bufferlist &bl, uint64_t offset, uint64_t length) {
+  neorados::ReadOp read_op;
+  read_op.read(offset, offset+length, &bl);
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(read_op), nullptr,
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_object_remove(I *image_ctx, Context *on_finish, std::string name) {
+  neorados::WriteOp write_op;
+  write_op.remove();
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(write_op),
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_xattr_write(I *image_ctx, Context *on_finish, std::string name, std::string xattr_name, ceph::bufferlist& bl) {
+  neorados::WriteOp write_op;
+  write_op.setxattr(xattr_name, std::move(bl));
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(write_op),
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_xattr_read(I *image_ctx, Context *on_finish, std::string name, std::string xattr_name, ceph::bufferlist* out) {
+  neorados::ReadOp read_op;
+  read_op.get_xattr(xattr_name, out);
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(read_op), nullptr,
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
+}
+
+template <typename I>
+void Api<I>::rados_xattrs_read(I *image_ctx, Context *on_finish, std::string name, 
+  boost::container::flat_map<std::string, bufferlist> *xattr_out_map) {
+  neorados::ReadOp read_op;
+  read_op.get_xattrs(xattr_out_map);
+  image_ctx->rados_api.execute(
+    {name}, *(image_ctx->get_data_io_context()),
+    std::move(read_op), nullptr,
+    librbd::asio::util::get_context_adapter(on_finish), nullptr, nullptr);
 }
 
 } // namespace plugin
